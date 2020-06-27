@@ -1,9 +1,5 @@
 package com.project;
 
-import com.project.dao.IUserDAO;
-import com.project.dao.UserDAO;
-import com.project.models.Role;
-import com.project.models.User;
 
 /**
  * This class is just to test some of the methods to confirm that we
@@ -14,14 +10,10 @@ import com.project.models.User;
 public class Driver {
 
 	public static void main(String[] args) {
-		IUserDAO dao = new UserDAO();
 		
-		User user = new User(0, "username2", "password", "first", "last", "email2@yahoo.com", new Role(1, "Standard"));
-		System.out.println(dao.insert(user));
-		
-		for(User u : dao.findAll()) {
-			System.out.println(u);
+		String s = "hi I'M n/oT aLl 7S";
+		System.out.println(s.toLowerCase());
 		}
 	}
 
-}
+

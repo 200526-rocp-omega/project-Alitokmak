@@ -2,17 +2,18 @@ package com.project.models;
 
 import java.util.Objects;
 
-public abstract class Account {
+public abstract class AbstractAccount {
 	  private int accountId; // primary key
 	  private double balance;  // not null
 	  private AccountStatus status;
 	  private AccountType type;
-	
-	  public Account() {
+	  
+	public AbstractAccount() {
 		super();
+		// TODO Auto-generated constructor stub
 	}
-	
-	  public Account(int accountId, double balance, AccountStatus status, AccountType type) {
+
+	public AbstractAccount(int accountId, double balance, AccountStatus status, AccountType type) {
 		super();
 		this.accountId = accountId;
 		this.balance = balance;
@@ -62,10 +63,10 @@ public abstract class Account {
 		if (this == obj) {
 			return true;
 		}
-		if (!(obj instanceof Account)) {
+		if (!(obj instanceof AbstractAccount)) {
 			return false;
 		}
-		Account other = (Account) obj;
+		AbstractAccount other = (AbstractAccount) obj;
 		return accountId == other.accountId
 				&& Double.doubleToLongBits(balance) == Double.doubleToLongBits(other.balance)
 				&& Objects.equals(status, other.status) && Objects.equals(type, other.type);
@@ -77,5 +78,6 @@ public abstract class Account {
 				+ type + "]";
 	}
 	
+	
 	  
-	}
+}

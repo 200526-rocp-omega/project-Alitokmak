@@ -2,31 +2,42 @@ package com.project.controllers;
 
 import java.util.List;
 
-import javax.servlet.http.HttpSession;
 
-import com.project.exceptions.NotLoggedInException;
-import com.project.models.Role;
-import com.project.models.User;
 import com.project.services.UserService;
+import com.project.exceptions.FailedStatementException;
+import com.project.models.AbstractUser;
+import com.project.models.Role;
+import com.project.templates.TransferTemplate;
 
 public class UserController {
-
-	private final UserService userService = new UserService();
+private UserService us = new UserService(); // Lets us access User Service methods 
 	
-	public boolean logout(HttpSession session) {
-		try {
-			userService.logout(session);
-		} catch(NotLoggedInException e) {
-			return false;
+	public AbstractUser accessUser(int id) { // Fetched when the page is loaded normally
+		
+		return us.findByID(id);
+	}
+	
+	public List<AbstractUser> findAll(){
+		return us.findAll();
+	}
+	
+	public AbstractUser updateUser(AbstractUser u) { // Authorizes and allows for update.		
+		return us.update(u);
+	}
+	
+	public AbstractUser insert(AbstractUser u) {
+		return us.insert(u);
+	}
+	
+	public void upgradeUser(int userId, int accountId, AccountController ac) {
+		AbstractUser user = us.findByID(userId);
+		if(user.getRole().getRoleId() != 1) {
+			throw new FailedStatementException(); // If the user account is already premium / employee / admin, they shouldn't be accessing.
 		}
-		return true;
-	}
-	
-	public User findUserById(int id) {
-		return userService.findById(id);
-	}
-	
-	public List<User> findAllUsers() {		
-		return userService.findAll();
+		TransferTemplate transfer = new TransferTemplate(accountId,5,100);
+		ac.transfer(transfer); // Try to transfer from the given ID to our Admin account (the 'bank' account
+		
+		user.setRole(new Role(2,"Premium"));
+		us.update(user);
 	}
 }

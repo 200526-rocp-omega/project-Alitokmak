@@ -11,78 +11,70 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.project.models.User;
+
 import com.project.services.UserService;
+import com.project.models.AbstractUser;
 import com.project.templates.LoginTemplate;
 
-public class LoginServlet extends HttpServlet {
+@SuppressWarnings("serial")
+public class LoginServlet extends HttpServlet{
+	private ObjectMapper om = new ObjectMapper(); // Helps convert JSON to a usable object.
+	private UserService us = new UserService();
 	
-	private static final ObjectMapper om = new ObjectMapper();
-	private static final UserService service = new UserService();
-	
-	@Override
-	protected void doGet(HttpServletRequest req, HttpServletResponse res)
-			throws ServletException, IOException {
-
+	@Override // the doGet is called when someone enters the webpage from the URI
+	protected void doGet(HttpServletRequest req, HttpServletResponse rsp)
+		throws ServletException, IOException{
 		
+		rsp.setStatus(200);
+		PrintWriter writer = rsp.getWriter();
+		HttpSession session = req.getSession(); // Creates a session 
+		if(session.getAttribute("currentUser") != null) {
+			writer.println("Logged in already");
+		} else {
+			writer.println("You need to log in");
+		}
 	}
 	
-	@Override
-	protected void doPost(HttpServletRequest req, HttpServletResponse res)
-			throws ServletException, IOException {
+	@Override // Normally post and such is inaccessible unless something like a FORM, JavaScript, or POSTMATE is used
+	protected void doPost(HttpServletRequest req, HttpServletResponse rsp)
+		throws ServletException, IOException{
 		
-		HttpSession session = req.getSession();
+		PrintWriter writer = rsp.getWriter();
 		
-		User current = (User) session.getAttribute("currentUser");
-		
-		// Already logged in
-		if(current != null) {
-			
-			res.setStatus(400);
-			res.getWriter().println("You are already logged in as user " + current.getUsername());
-			return;
+		HttpSession session = req.getSession(); // Creates a session 
+		if(session.getAttribute("currentUser") != null) {
+			rsp.setStatus(200);
+			writer.println("Logged in already");
 		}
-
-		BufferedReader reader = req.getReader();
 		
-		StringBuilder sb = new StringBuilder();
+		BufferedReader reader = req.getReader(); // The reader takes info from the 'req'
+		
+		
+		//The below is just an alternate way to utilize om.readValue(), instead of passing 'reader' we pass 'body'
+		StringBuilder sb = new StringBuilder(); // And we will use the StringBuilder to transform the reader into a response we can use
 		
 		String line;
-		while( (line = reader.readLine()) != null ) {
-			sb.append(line);
-		}
-		/*
-		 * The (line = reader.readLine()) part obtains the value for a single line
-		 * from the body of the request and stores it into the line variable
-		 * 
-		 * Then the != null part compares the value of the string to null
-		 * 
-		 * If the readLine() method is null, that means we are at the end
-		 */
 		
-		String body = sb.toString();
+		while( (line = reader.readLine()) != null) { // First stores the nextLine into our line variable, and then compares if it's null
+			sb.append(line); //Add the line to SB
+		}
+		
+		String body = sb.toString(); // For the case of our login we get the username:usernameValue,password:passValue as the syntax.
 		
 		LoginTemplate lt = om.readValue(body, LoginTemplate.class);
-		
-		User u = service.login(lt);
-		PrintWriter writer = res.getWriter();
 
-		if(u == null) {
-			// Login failed
-			res.setStatus(400);
-			
-			writer.println("Username or password was incorrect");
-			return;
+		//LoginTemplate lt = om.readValue(reader,LoginTemplate.class);
+		AbstractUser u = us.login(lt); // store credentials in the thing.
+		
+		if(u != null) {
+			// Successful login attempt
+			rsp.setStatus(200);
+			writer.println(om.writeValueAsString(u));
+			session.setAttribute("currentUser", u); // applies the 'credentials' to the session so we can see who it is in other requests 
+		} else {
+			// Unsuccessful login attempt
+			rsp.setStatus(400);
+			writer.println("Username or password incorrect");
 		}
-		
-		// Login successful
-		
-		session.setAttribute("currentUser", u);
-		
-		res.setStatus(200);
-		
-		writer.println(om.writeValueAsString(u));
-		
-		res.setContentType("application/json");
 	}
 }

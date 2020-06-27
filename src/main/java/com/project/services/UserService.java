@@ -1,82 +1,76 @@
 package com.project.services;
 
 import java.util.List;
-
-import javax.servlet.http.HttpSession;
-
-import com.project.dao.IUserDAO;
-import com.project.dao.UserDAO;
-import com.project.exceptions.NotLoggedInException;
-import com.project.models.User;
+import com.project.models.*;
 import com.project.templates.LoginTemplate;
+import com.project.dao.AbstractUserDAO;
+import com.project.dao.IAbstractUserDAO;
+import com.project.exceptions.FailedStatementException;
+import com.project.exceptions.InvalidLoginException;
 
-// The service layer is a layer that is designed to enforce your "business logic"
-// These are miscellaneous rules that define how your application will function
-// 		Ex: May not withdraw money over the current balance
-// All interaction with the DAO will be through this service layer
-// This design is simply furthering the same design structure that we have used up to now
-// How you go about designing the details of this layer is up to you
-// Due to the nature of the "business logic" being rather arbitrary
-// This layer has the MOST creativity involved
-// Most other layers are pretty boilerplate, where you pretty much copy/paste most methods
 public class UserService {
+	private static IAbstractUserDAO uDAO = new AbstractUserDAO();
 	
-	private IUserDAO dao = new UserDAO();
-
-	// A starting place that I like to use, is to also create CRUD methods in the service layer
-	// that will be used to interact with the DAO
-	
-	// Then additionally, you can have extra methods to enforce whatever features/rules that you want
-	// For example, we might also have a login/logout method
-	
-	public int insert(User u) {
-		return dao.insert(u);
+	public AbstractUser insert(AbstractUser u) {
+		int result = uDAO.insert(u); // determine if passed or not.
+		if(result <= 0) {
+			throw new FailedStatementException();
+		}
+		int userId = uDAO.findByUsername(u.getUsername()).getUserId(); // Finds the auto-generated userID
+		u.setUserId(userId); // Then sets it.
+		return u;
 	}
 	
-	public List<User> findAll() {
-		return dao.findAll();
+	public List<AbstractUser> findAll(){ // Pass in current user-list
+		return uDAO.findAll(); // No other logic needed 
 	}
 	
-	public User findById(int id) {
-		return dao.findById(id);
+	public AbstractUser findByID(int id) {
+		if(id<1) {
+			throw new IllegalArgumentException(); // Id goes from 1 to above, anything else is an error.
+		}
+		return uDAO.findByID(id);		
 	}
 	
-	public User findByUsername(String username) {
-		return dao.findByUsername(username);
+	public AbstractUser findByUsername(String uname) {
+		if(uname.contains("\n") || uname.equals("")) { //If blank string or having a newline character
+			throw new IllegalArgumentException(); // Not a valid username
+		}
+		return uDAO.findByUsername(uname);
 	}
 	
-	public int update(User u) {
-		return dao.update(u);
-	}
-	
-	public int delete(int id) {
-		return dao.delete(id);
-	}
-	
-	public User login(LoginTemplate lt) {
-		
-		User userFromDB = findByUsername(lt.getUsername());
-		
-		// Username was incorrect
-		if(userFromDB == null) {
-			return null;
+	public AbstractUser login(LoginTemplate lt) {
+		// Used to check if credentials match a user in the Database and return 1 for successful login? Not sure how to start a session yet
+		// Might just return a User object so the application can track their Role and ID
+		AbstractUser u = this.findByUsername(lt.getUsername());
+		if(u == null) {
+			throw new InvalidLoginException();
 		}
 		
-		// Username was correct and so was password
-		if(userFromDB.getPassword().equals(lt.getPassword())) {
-			return userFromDB;
-		}
-		
-		// Username was correct, but password was not
-		return null;
+		if(u.getPassword().equals(lt.getPassword())) {
+			return u;
+		} 		
+		System.out.println("No match");
+		return u;
 	}
 	
-	public void logout(HttpSession session) {
-		// They were never logged in to begin with
-		if(session == null || session.getAttribute("currentUser") == null) {
-			throw new NotLoggedInException("User must be logged in, in order to logout.");
+	public AbstractUser update(AbstractUser u) {
+		int result = uDAO.update(u);
+		if(result != 1) {
+			throw new FailedStatementException();
 		}
-		
-		session.invalidate();
+		return uDAO.findByID(u.getUserId()); // Returns appropriate record to verify update
 	}
+	
+	public boolean withdraw(AbstractAccount acc, int amount) {
+		// Given the current user and the account they want to withdraw from, how much? 
+		// If the amount is greater than balance or less than zero, throw an error
+		return false;
+	}
+	
+	public boolean deposit(AbstractAccount acc, int amount) {
+		return false;
+	}
+	
+	
 }

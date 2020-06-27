@@ -3,7 +3,7 @@ package com.project.templates;
 import java.util.Objects;
 
 public class MessageTemplate {
-
+	// Used to store a message to be delivered as JSON to our client when they run into an error.
 	private String message;
 
 	public MessageTemplate() {
@@ -44,4 +44,6 @@ public class MessageTemplate {
 	public String toString() {
 		return "MessageTemplate [message=" + message + "]";
 	}
+	
+	
 }

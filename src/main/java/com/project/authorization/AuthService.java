@@ -2,40 +2,45 @@ package com.project.authorization;
 
 import javax.servlet.http.HttpSession;
 
+import com.project.exceptions.AuthorizationException;
 import com.project.exceptions.NotLoggedInException;
-import com.project.exceptions.RoleNotAllowedException;
-import com.project.models.User;
+import com.project.models.AbstractUser;
 
 public class AuthService {
-
-	public static void guard(HttpSession session, String...roles) {
-		User currentUser = session == null ? null : (User) session.getAttribute("currentUser");
-		if(session == null || currentUser == null) {
-			throw new NotLoggedInException();
-		}
+	public void guard(HttpSession session, String...roles) { //Check if the current user is in our specified allowed roles
 		
-		boolean found = false;
-		String role = currentUser.getRole().getRole();
-		for(String allowedRole : roles) {
-			if(allowedRole.equals(role)) {
-				found = true;
-				break;
+		AbstractUser currentuser = (AbstractUser) session.getAttribute("currentuser");
+		String userRole = currentuser.getRole().getRole(); // Find the role of our user.
+		
+		for(String role : roles) {
+			if(userRole.equals(role)) {
+				return; // Authorized role found
 			}
 		}
 		
-		if(!found) {
-			throw new RoleNotAllowedException();
-		}
+		throw new AuthorizationException(); // Not with an allowed role
 	}
 	
-	public static void guard(HttpSession session, int id, String...roles) {
-		try {
-			guard(session, roles);
-		} catch(RoleNotAllowedException e) {
-			User current = (User) session.getAttribute("currentUser");
-			if(id != current.getId()) {
-				throw e;
+	public void guard(HttpSession session, int id, String...roles) { // Check if UserID matches currentuser's id or in allowed roles 
+		
+		AbstractUser currentuser = (AbstractUser) session.getAttribute("currentuser");
+		
+		if(id == currentuser.getUserId()) return; // If the user has the appropriate ID, they can access the information
+		
+		String userRole = currentuser.getRole().getRole(); // Find the role
+		
+		for(String role : roles) {
+			if(userRole.equals(role)) {
+				return; // Authorized role found
 			}
+		}
+		
+		throw new AuthorizationException(); // Not the specified user nor an allowed role
+	}
+	
+	public void guard(HttpSession session) { // Checks if user is logged in or not
+		if(session == null || session.getAttribute("currentuser") == null) {
+			throw new NotLoggedInException();
 		}
 	}
 }

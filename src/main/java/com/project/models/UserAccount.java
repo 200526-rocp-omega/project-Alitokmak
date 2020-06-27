@@ -1,56 +1,60 @@
 package com.project.models;
 
+import java.util.Objects;
+
 public class UserAccount {
-	
-	private int userID;
-	private int accountID;
+	// This model is used to store information from the USERS-ACCOUNTS join-table and to work with the UserAccountDAO
+	private int accountId;
+	private int userId;
 	
 	public UserAccount() {
 		super();
+		// TODO Auto-generated constructor stub
 	}
-	public UserAccount(int userID, int accountID) {
+
+	public int getAccountId() {
+		return accountId;
+	}
+
+	public void setAccountId(int accountId) {
+		this.accountId = accountId;
+	}
+
+	public int getUserId() {
+		return userId;
+	}
+
+	public void setUserId(int userId) {
+		this.userId = userId;
+	}
+
+	public UserAccount(int userId, int accountId) {
 		super();
-		this.userID = userID;
-		this.accountID = accountID;
+		this.accountId = accountId;
+		this.userId = userId;
 	}
-	public int getUserID() {
-		return userID;
-	}
-	public void setUserID(int userID) {
-		this.userID = userID;
-	}
-	public int getAccountID() {
-		return accountID;
-	}
-	public void setAccountID(int accountID) {
-		this.accountID = accountID;
-	}
+
 	@Override
 	public int hashCode() {
-		final int prime = 31;
-		int result = 1;
-		result = prime * result + accountID;
-		result = prime * result + userID;
-		return result;
+		return Objects.hash(accountId, userId);
 	}
+
 	@Override
 	public boolean equals(Object obj) {
-		if (this == obj)
+		if (this == obj) {
 			return true;
-		if (obj == null)
+		}
+		if (!(obj instanceof UserAccount)) {
 			return false;
-		if (getClass() != obj.getClass())
-			return false;
+		}
 		UserAccount other = (UserAccount) obj;
-		if (accountID != other.accountID)
-			return false;
-		if (userID != other.userID)
-			return false;
-		return true;
+		return accountId == other.accountId && userId == other.userId;
 	}
+
 	@Override
 	public String toString() {
-		return "UserAccount [userID=" + userID + ", accountID=" + accountID + "]";
+		return "UserAccount [accountId=" + accountId + ", userId=" + userId + "]";
 	}
+	
 	
 }

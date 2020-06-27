@@ -7,141 +7,263 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
-import com.project.models.SimpAccount;
-import com.project.models.Account;
+
+import com.project.models.AbstractAccount;
 import com.project.models.AccountStatus;
-//DATA ACCES OBJECT IN REGARDS TO DATA ACCES WANTED TO LEVERAGE ABSTRACTION
-	//IN GENERAL IS A CLASS
-		//CREATES INTERFACE TO USE ABSTRACTION
-			//INTERFACE USED TO HIDE ALL LOGIC FROM THE CLASSES WHICH CONTAIN THEM
 import com.project.models.AccountType;
+import com.project.models.StandardAccount;	
 import com.project.util.ConnectionUtil;
+
 public class AccountDAO implements IAccountDAO{
+	// All functions are fully operational at this point in time.
+
 	@Override
-	public int insert(Account a) { //re
-		try (Connection conn = ConnectionUtil.getConnection()) { //obtains conneciton from utility class
-			String sql = "INSERT INTO ACCOUNTS (balance, status_id, type_id) VALUES (?,?,?)";
-			// the ? are placeholders for input values, they work for PreparedStatements, and are designed to protect from SQL Injection
-			PreparedStatement stmt = conn.prepareStatement(sql); //using prepared statement to prevent sql injection
-			//inserting below values into the ?'s above
-			double balance = a.getBalance(); //initial object creation of balance
-			AccountType accounttype = a.getType(); //initial account type 
-			AccountStatus accountstatus = a.getStatus();
-		//	stmt.setDouble(1, double balance = a.getBalance(); //initial object creation of balance);
-			//			stmt.setInt(6, u.getRole().getId());
-			stmt.setDouble(1, balance);
-			stmt.setInt(2, accountstatus.getStatusId());
-			stmt.setInt(3, accounttype.getTypeId());
-			return stmt.executeUpdate();
+	public int insert(AbstractAccount a) { // Insert user into database and update the given object with the generated ID
+		//CONFIRMED WORKS
+		int result = 0;
+		try (Connection conn = ConnectionUtil.getConnection()) {
+			// The below 'unpacks' all the information in the Account object for neat SQL implementation
+			double balance = a.getBalance();
+			AccountStatus as = a.getStatus();
+			AccountType at = a.getType();
+			
+			// The below updates all fields
+			String sql = "INSERT INTO ACCOUNTS (balance,status_id,type_id) VALUES (?, ?, ?)";
+			
+			PreparedStatement stmnt = conn.prepareStatement(sql);
+			stmnt.setDouble(1, balance);
+			stmnt.setInt(2, as.getStatusId());
+			stmnt.setInt(3, at.getTypeId());
+			
+			result = stmnt.executeUpdate();
+			
+			sql = "SELECT ISEQ$$_21571.CURRVAL FROM DUAL"; //This gets the auto-generated ID we just used for our new account
+			stmnt = conn.prepareStatement(sql);
+			
+			ResultSet rs = stmnt.executeQuery();
+			
+			while(rs.next()) {
+				int id = rs.getInt(1); // Grabs the value from the first column
+				a.setAccountId(id);  // Now that we know the Value, we can access our new ID and assign it to our account.
+			}
+			
 		} catch(SQLException e) {
 			e.printStackTrace();
-			return 0;
+			return result; // If something goes wrong, return 0 for '0 changed rows'.
 		}
+		return result;
 	}
+
 	@Override
-	public List<Account> findAll() { // Return all users
-		List<Account> everyAccount = new ArrayList<>();
+	public List<AbstractAccount> findAll() { // Return all users
+		//CONFIRMED WORKS
+		List<AbstractAccount> allAccounts = new ArrayList<>();
+		
 		try (Connection conn = ConnectionUtil.getConnection()) {// This is a 'try with resources' block. 
 			//Allows us to instantiate some variable, and at the end of try it will auto-close 
 			//to prevent memory leaks, even if exception is thrown.
-			String sql = "SELECT *" + "FROM ACCOUNTS " + "INNER JOIN ACCOUNT_STATUS ON ACCOUNTS.status_id = ACCOUNT_STATUS.id " + "INNER JOIN ACCOUNT_TYPE ON ACCOUNTS.type_id = ACCOUNT_TYPE.id"; 
+			
+			String sql = "SELECT *"
+					+ "FROM ACCOUNTS "
+					+ "INNER JOIN ACCOUNT_STATUS ON ACCOUNTS.status_id = ACCOUNT_STATUS.id "
+					+ "INNER JOIN ACCOUNT_TYPE ON ACCOUNTS.type_id = ACCOUNT_TYPE.id"; // gets all Users with the value of their role id displayed
+			
 			Statement stmnt = conn.createStatement();
-			ResultSet resultSet = stmnt.executeQuery(sql); // Right as this is executed, the query runs to the database and grabs the info
-			/*while(rs.next()) {
-				int id = rs.getInt("id"); //grabs first column from the sql statement above
-				String username = rs.getString("username");
-				String password = rs.getString("password");
-				String firstName = rs.getString("first_name");
-				String lastName = rs.getString("last_name");
-				String email = rs.getString("email");
-				int roleId = rs.getInt("role_id");
-				String rName = rs.getString("role");
-				Role role = new Role(roleId, rName);
-				User u = new User(id, username, password, firstName, lastName, email, role); //user object
-			 * 
-			 */
-			while(resultSet.next()) { // For each entry in the result set
-				int id = resultSet.getInt("ID"); // Grab the account id
-				double balance = resultSet.getDouble("BALANCE");
-				int asID = resultSet.getInt("STATUS_ID");
-				String asStatus = resultSet.getString("status");
-				int atID = resultSet.getInt("type_id");
-				String atType = resultSet.getString("type");
-				AccountStatus accountStatus = new AccountStatus(asID,asStatus);
-				AccountType accountType = new AccountType(atID, atType);
-				Account a = new SimpAccount(id,balance,accountStatus,accountType);
-				everyAccount.add(a); // add User object to the list
+			
+			ResultSet rs = stmnt.executeQuery(sql); // Right as this is executed, the query runs to the database and grabs the info
+			
+			while(rs.next()) { // For each entry in the result set
+				int id = rs.getInt("ID"); // Grab the account id
+				double balance = rs.getDouble("BALANCE");
+				int asID = rs.getInt("STATUS_ID");
+				String asStatus = rs.getString("status");
+				int atID = rs.getInt("type_id");
+				String atType = rs.getString("type");
+				
+				AccountStatus as = new AccountStatus(asID,asStatus);
+				AccountType at = new AccountType(atID, atType);
+				AbstractAccount a = new StandardAccount(id,balance,as,at);
+				
+				allAccounts.add(a); // add User object to the list
 			}
+			
 		} catch(SQLException e) {
 			e.printStackTrace();
-			return new ArrayList<Account>(); // If something goes wrong, return an empty list.
+			return new ArrayList<AbstractAccount>(); // If something goes wrong, return an empty list.
 		}
-		return everyAccount;
+		return allAccounts;
 	}
+
 	@Override
-	public Account findById(int accountId) { 
-		Account result = null;
+	public AbstractAccount findByID(int id) { // Find an account matching the given account id
+		//CONFIRMED WORKS
+		AbstractAccount result = null;
 		try (Connection conn = ConnectionUtil.getConnection()) {
-			String sql = "SELECT * FROM ACCOUNTS " + "INNER JOIN ACCOUNT_STATUS ON ACCOUNTS.status_id = ACCOUNT_STATUS.id " + "INNER JOIN ACCOUNT_TYPE ON ACCOUNTS.type_id = ACCOUNT_TYPE.id " + "WHERE ACCOUNTS.ID = ?";
+			
+			String sql = "SELECT * FROM ACCOUNTS "
+					+ "INNER JOIN ACCOUNT_STATUS ON ACCOUNTS.status_id = ACCOUNT_STATUS.id "
+					+ "INNER JOIN ACCOUNT_TYPE ON ACCOUNTS.type_id = ACCOUNT_TYPE.id "
+					+ "WHERE ACCOUNTS.ID = ?";
+			
 			PreparedStatement stmnt = conn.prepareStatement(sql);
-			stmnt.setInt(1, accountId); // Defines the WHERE ID = ?
+			stmnt.setInt(1, id); // Defines the WHERE ID = ?
+			
 			ResultSet rs = stmnt.executeQuery(); // grabs result set of the query
+			
 			while(rs.next()) { // While there are results:
-				int accountID = rs.getInt("id");
+				int accountId = rs.getInt("id");
 				double balance = rs.getDouble("balance");
 				int statusId = rs.getInt("status_id");
 				String statusName = rs.getString("status");
 				int typeId = rs.getInt("type_id");
 				String typeName = rs.getString("type");
-				AccountStatus accountStatus = new AccountStatus(statusId,statusName);
-				AccountType accountType = new AccountType(typeId,typeName);
-				result = new SimpAccount(accountID,balance,accountStatus,accountType);
+				
+				AccountStatus as = new AccountStatus(statusId,statusName);
+				AccountType at = new AccountType(typeId,typeName);
+				result = new StandardAccount(accountId,balance,as,at);
 			}
 		} catch(SQLException e) {
 			e.printStackTrace();
 			return result; // If something goes wrong, return 0 for '0 changed rows'.
 		}
-		return null;
+		return result;
 	}
+
 	@Override
-	public List<Account> findByStatus(int statusId) { // Locate files of an appropriate status (pending, open, closed, denied)
+	public int update(AbstractAccount a) {
+		// Update the various fields of an account record matching the given ID
 		//CONFIRMED WORKS
-		List<Account> everyAccount = new ArrayList<>();
-		try (Connection conn = ConnectionUtil.getConnection()) {// This is a 'try with resources' block. 
-			//Allows us to instantiate some variable, and at the end of try it will auto-close 
-			//to prevent memory leaks, even if exception is thrown.
-			String sql = "SELECT *" + "FROM ACCOUNTS " + "INNER JOIN ACCOUNT_STATUS ON ACCOUNTS.status_id = ACCOUNT_STATUS.id " + "INNER JOIN ACCOUNT_TYPE ON ACCOUNTS.type_id = ACCOUNT_TYPE.id " + "WHERE ACCOUNT_STATUS.id = ?"; // gets all accounts that match the specific account status ID
-			PreparedStatement stmnt = conn.prepareStatement(sql);
-			stmnt.setInt(1, statusId);
-			ResultSet resultSet = stmnt.executeQuery(); // Right as this is executed, the query runs to the database and grabs the info
-			while(resultSet.next()) { // For each entry in the result set
-				int id = resultSet.getInt("ID"); // Grab the account id
-				double balance = resultSet.getDouble("BALANCE");
-				int asID = resultSet.getInt("status_id");
-				String asStatus = resultSet.getString("status");
-				int atID = resultSet.getInt("type_id");
-				String atType = resultSet.getString("type");
-				AccountStatus as = new AccountStatus(asID,asStatus);
-				AccountType at = new AccountType(atID, atType);
-				Account a = new SimpAccount(id,balance,as,at);
-				everyAccount.add(a); // add User object to the list
-			}
+		int result = 0;
+		try (Connection conn = ConnectionUtil.getConnection()) {
+			// The below 'unpacks' all the information in the Account object for neat SQL implementation
+			int accountId = a.getAccountId();
+			double balance = a.getBalance();
+			int statusId = a.getStatus().getStatusId();
+			int typeId = a.getType().getTypeId();
+			
+			// The below updates all fields
+			String sql = "UPDATE ACCOUNTS SET "
+					+ "BALANCE = ?, STATUS_ID = ?, TYPE_ID = ? WHERE ID = ?"; 
+			
+			PreparedStatement stmnt = conn.prepareStatement(sql); //Insert values into statement
+			stmnt.setDouble(1, balance);
+			stmnt.setInt(2, statusId);
+			stmnt.setInt(3, typeId);
+			stmnt.setInt(4, accountId);
+			
+			result = stmnt.executeUpdate();
 		} catch(SQLException e) {
 			e.printStackTrace();
-			return new ArrayList<Account>(); // If something goes wrong, return an empty list.
+			return result; // If something goes wrong, return 0 for '0 changed rows'.
 		}
-		return everyAccount;
+		return result;
 	}
-	public List<Account> findByType(int typeId){ // Find by type (1 checking, 2 savings)
+
+	@Override
+	public int updateBalance(int id, double balance) { // Update the balance of an account with the specified ID
 		//CONFIRMED WORKS
-		List<Account> everyAccount = new ArrayList<>();
+		int result = 0;
+		try (Connection conn = ConnectionUtil.getConnection()) {
+			// The below 'unpacks' all the information in the Account object for neat SQL implementation
+			
+			// The below updates all fields
+			String sql = "UPDATE ACCOUNTS SET BALANCE = ? WHERE ID = ?"; 
+			
+			PreparedStatement stmnt = conn.prepareStatement(sql); //Insert values into statement
+			stmnt.setDouble(1, balance);
+			stmnt.setInt(2, id);
+			
+			result = stmnt.executeUpdate();
+		} catch(SQLException e) {
+			e.printStackTrace();
+			return result; // If something goes wrong, return 0 for '0 changed rows'.
+		}
+		return result;
+	}
+	
+	@Override
+	public int delete(int accountId) {
+		// Delete the Account row that matches the given id
+		//CONFIRMED WORKS
+		int result = 0;
+		try (Connection conn = ConnectionUtil.getConnection()) {
+			
+			// The below updates all fields
+			String sql = "DELETE FROM ACCOUNTS WHERE ID = ?"; 
+			
+			PreparedStatement stmnt = conn.prepareStatement(sql); //Insert values into statement
+			stmnt.setInt(1, accountId);
+			
+			result = stmnt.executeUpdate();
+		} catch(SQLException e) {
+			e.printStackTrace();
+			return result; // If something goes wrong, return 0 for '0 changed rows'.
+		}
+		return result;
+	}
+
+	
+	@Override
+	public List<AbstractAccount> findByStatus(int statusId) { // Locate files of an appropriate status (pending, open, closed, denied)
+		//CONFIRMED WORKS
+		List<AbstractAccount> allAccounts = new ArrayList<>();
+
 		try (Connection conn = ConnectionUtil.getConnection()) {// This is a 'try with resources' block. 
 			//Allows us to instantiate some variable, and at the end of try it will auto-close 
 			//to prevent memory leaks, even if exception is thrown.
-			String sql = "SELECT * " + "FROM ACCOUNTS " + "INNER JOIN ACCOUNT_STATUS ON ACCOUNTS.status_id = ACCOUNT_STATUS.id " + "INNER JOIN ACCOUNT_TYPE ON ACCOUNTS.type_id = ACCOUNT_TYPE.id " + "WHERE ACCOUNT_TYPE.id = ?"; // gets all accounts that match the specific account type ID
+
+			String sql = "SELECT *"
+					+ "FROM ACCOUNTS "
+					+ "INNER JOIN ACCOUNT_STATUS ON ACCOUNTS.status_id = ACCOUNT_STATUS.id "
+					+ "INNER JOIN ACCOUNT_TYPE ON ACCOUNTS.type_id = ACCOUNT_TYPE.id "
+					+ "WHERE ACCOUNT_STATUS.id = ?"; // gets all accounts that match the specific account status ID
+
+			PreparedStatement stmnt = conn.prepareStatement(sql);
+			stmnt.setInt(1, statusId);
+			
+			ResultSet rs = stmnt.executeQuery(); // Right as this is executed, the query runs to the database and grabs the info
+
+			while(rs.next()) { // For each entry in the result set
+				int id = rs.getInt("ID"); // Grab the account id
+				double balance = rs.getDouble("BALANCE");
+				int asID = rs.getInt("status_id");
+				String asStatus = rs.getString("status");
+				int atID = rs.getInt("type_id");
+				String atType = rs.getString("type");
+
+				AccountStatus as = new AccountStatus(asID,asStatus);
+				AccountType at = new AccountType(atID, atType);
+				AbstractAccount a = new StandardAccount(id,balance,as,at);
+
+				allAccounts.add(a); // add User object to the list
+			}
+
+		} catch(SQLException e) {
+			e.printStackTrace();
+			return new ArrayList<AbstractAccount>(); // If something goes wrong, return an empty list.
+		}
+		return allAccounts;
+	}
+
+	public List<AbstractAccount> findByType(int typeId){ // Find by type (1 checking, 2 savings)
+		//CONFIRMED WORKS
+		
+		List<AbstractAccount> allAccounts = new ArrayList<>();
+		try (Connection conn = ConnectionUtil.getConnection()) {// This is a 'try with resources' block. 
+			//Allows us to instantiate some variable, and at the end of try it will auto-close 
+			//to prevent memory leaks, even if exception is thrown.
+
+			String sql = "SELECT * "
+					+ "FROM ACCOUNTS "
+					+ "INNER JOIN ACCOUNT_STATUS ON ACCOUNTS.status_id = ACCOUNT_STATUS.id "
+					+ "INNER JOIN ACCOUNT_TYPE ON ACCOUNTS.type_id = ACCOUNT_TYPE.id "
+					+ "WHERE ACCOUNT_TYPE.id = ?"; // gets all accounts that match the specific account type ID
+
 			PreparedStatement stmnt = conn.prepareStatement(sql);
 			stmnt.setInt(1, typeId);
+			
 			ResultSet rs = stmnt.executeQuery(); // Right as this is executed, the query runs to the database and grabs the info
+
 			while(rs.next()) { // For each entry in the result set
 				int id = rs.getInt("id"); // Grab the account id
 				double balance = rs.getDouble("balance");
@@ -149,15 +271,21 @@ public class AccountDAO implements IAccountDAO{
 				String asStatus = rs.getString("status");
 				int atID = rs.getInt("type_id");
 				String atType = rs.getString("type");
+
 				AccountStatus as = new AccountStatus(asID,asStatus);
 				AccountType at = new AccountType(atID, atType);
-				Account a = new SimpAccount(id,balance,as,at);
-				everyAccount.add(a); // add User object to the list
+				AbstractAccount a = new StandardAccount(id,balance,as,at);
+
+				allAccounts.add(a); // add User object to the list
 			}
+
 		} catch(SQLException e) {
 			e.printStackTrace();
-			return new ArrayList<Account>(); // If something goes wrong, return an empty list.
+			return new ArrayList<AbstractAccount>(); // If something goes wrong, return an empty list.
 		}
-		return everyAccount;
+		
+		return allAccounts;
 	}
+	
+
 }
